@@ -1,0 +1,144 @@
+ generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wallets      Wallet[]
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+  savingGoals  SavingGoal[]
+  reminders    Reminder[]
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   // misal: "Tunai", "BCA", "GoPay"
+  type      String   // misal: "CASH", "BANK", "EWALLET", "CREDIT"
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[] @relation("TransactionFromWallet")
+  transactionsTo Transaction[] @relation("TransactionToWallet")
+
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  type      String   // "INCOME" atau "EXPENSE"
+  icon      String?
+  color     String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@index([userId])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  walletId    String
+  toWalletId  String?  // hanya diisi jika type = "TRANSFER"
+  categoryId  String?
+  type        String   // "INCOME", "EXPENSE", "TRANSFER"
+  amount      Float
+  date        DateTime
+  notes       String?
+  receiptUrl  String?
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet     Wallet    @relation("TransactionFromWallet", fields: [walletId], references: [id], onDelete: Cascade)
+  toWallet   Wallet?   @relation("TransactionToWallet", fields: [toWalletId], references: [id])
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([categoryId])
+  @@index([date])
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  amount     Float
+  month      Int      // 1-12
+  year       Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, month, year])
+  @@index([userId])
+}
+
+model SavingGoal {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  targetDate    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Reminder {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  amount    Float?
+  dueDate   DateTime
+  type      String    @default("BILL") // "BILL" | "DAILY_LOG" | "OTHER"
+  isPaid    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+
